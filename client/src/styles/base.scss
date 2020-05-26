@@ -1,0 +1,16 @@
+body {
+  font-family: $base-font;
+  color: $slate;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  text-decoration: none;
+  color: $slate;
+  transition: 0.5s;
+
+  &:hover {
+    color: $rose-gold;
+  }
+}
