@@ -3,9 +3,12 @@ import * as API from "../../util/API";
 import "../../styles/home.scss";
 
 class App extends Component {
-  state = {};
+  state = {
+    categories: [],
+  };
 
-  spotifyLogin = () => {
+  // Allow user to log in to Spotify
+  login = () => {
     API.spotifyLogin()
       .then((res) => {
         window.location.href = res.redirectUrl;
@@ -13,16 +16,36 @@ class App extends Component {
       .catch((err) => console.log(err));
   };
 
-  componentDidMount() {}
+  componentDidMount() {
+    // GET Spotify's categories
+    API.getCategories()
+      .then((res) => {
+        this.setState({
+          categories: res.categories.items,
+        });
+      })
+      .catch((err) => console.log(err));
+  }
 
   render() {
+    let { categories } = this.state;
+    console.log("categories", categories);
+
     return (
       <div className="home-wrap">
         <div className="inner-wrap">
           <header>
             <h1>Spotify</h1>
           </header>
-          <button onClick={this.spotifyLogin}>Login</button>
+          {categories && (
+            <React.Fragment>
+              {categories.map((category, i) => {
+                return <div>{category.name}</div>;
+              })}
+            </React.Fragment>
+          )}
+
+          <button onClick={this.login}>Login</button>
         </div>
       </div>
     );

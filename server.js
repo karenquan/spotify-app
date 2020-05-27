@@ -10,6 +10,9 @@ const port = process.env.PORT || 5000;
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_SECRET;
 const redirect_uri = "http://localhost:5000/callback";
+const dev_url = "http://localhost:3000/";
+const spotify_url = "https://accounts.spotify.com";
+const spotify_api_url = "https://api.spotify.com";
 
 const app = express();
 
@@ -42,13 +45,6 @@ var generateRandomString = function (length) {
 
 let stateKey = "spotify_auth_state";
 
-// create a GET route
-app.get("/express", (req, res) => {
-  res.send({
-    express: `YOUR EXPRESS BACKEND IS CONNECTED TO REACT`,
-  });
-});
-
 // Spotify user authorization request
 // Return redirect url
 // CORS issue when trying to do the redirect here
@@ -61,10 +57,11 @@ app.get("/login", (req, res) => {
   // Authorization scopes
   // https://developer.spotify.com/documentation/general/guides/scopes/
 
-  var scope = "user-read-private user-read-email";
+  var scope = "user-read-private user-read-email user-top-read";
 
   let redirect_url =
-    "https://accounts.spotify.com/authorize?" +
+    spotify_url +
+    "/authorize?" +
     querystring.stringify({
       response_type: "code",
       client_id: client_id,
@@ -89,6 +86,7 @@ app.get("/login", (req, res) => {
   // );
 });
 
+// Callback after user authenticates
 app.get("/callback", function (req, res) {
   // your application requests refresh and access tokens
   // after checking the state parameter
@@ -101,7 +99,8 @@ app.get("/callback", function (req, res) {
 
   if (state === null || state !== storedState) {
     res.redirect(
-      "/#" +
+      dev_url +
+        "#" +
         querystring.stringify({
           error: "state_mismatch",
         })
@@ -109,7 +108,7 @@ app.get("/callback", function (req, res) {
   } else {
     res.clearCookie(stateKey);
     var authOptions = {
-      url: "https://accounts.spotify.com/api/token",
+      url: `${spotify_url}/api/token`,
       form: {
         code: code,
         redirect_uri: redirect_uri,
@@ -129,7 +128,7 @@ app.get("/callback", function (req, res) {
           refresh_token = body.refresh_token;
 
         var options = {
-          url: "https://api.spotify.com/v1/me",
+          url: `${spotify_api_url}/v1/me`,
           headers: { Authorization: "Bearer " + access_token },
           json: true,
         };
@@ -141,7 +140,8 @@ app.get("/callback", function (req, res) {
 
         // we can also pass the token to the browser to make requests from there
         res.redirect(
-          "/#" +
+          dev_url +
+            "#" +
             querystring.stringify({
               access_token: access_token,
               refresh_token: refresh_token,
@@ -149,7 +149,8 @@ app.get("/callback", function (req, res) {
         );
       } else {
         res.redirect(
-          "/#" +
+          dev_url +
+            "#" +
             querystring.stringify({
               error: "invalid_token",
             })
@@ -157,6 +158,59 @@ app.get("/callback", function (req, res) {
       }
     });
   }
+});
+
+// GET a list of categories
+app.get("/categories", (req, res) => {
+  let categories = [];
+
+  var authOptions = {
+    url: `${spotify_url}/api/token`,
+    form: {
+      grant_type: "client_credentials",
+    },
+    headers: {
+      Authorization:
+        "Basic " +
+        Buffer.from(client_id + ":" + client_secret).toString("base64"),
+    },
+    json: true,
+  };
+
+  request.post(authOptions, (error, response, body) => {
+    if (!error && response.statusCode === 200) {
+      let access_token = body.access_token;
+
+      // use the access token to access the Spotify Web API
+      let options = {
+        url: `${spotify_api_url}/v1/browse/categories`,
+        headers: { Authorization: "Bearer " + access_token },
+        json: true,
+      };
+
+      request.get(options, (error, response, body) => {
+        console.log(body.categories);
+        categories = body.categories;
+        res.send({ categories: categories });
+      });
+    } else {
+      // else redirect user
+      res.redirect(
+        dev_url +
+          "#" +
+          querystring.stringify({
+            error: "invalid_token",
+          })
+      );
+    }
+  });
+});
+
+// create a GET route
+app.get("/express", (req, res) => {
+  res.send({
+    express: `YOUR EXPRESS BACKEND IS CONNECTED TO REACT`,
+  });
 });
 
 // console.log that your server is up and running
