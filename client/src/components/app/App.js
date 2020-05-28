@@ -1,55 +1,15 @@
-import React, { Component } from "react";
-import * as API from "../../util/API";
-import "../../styles/home.scss";
+import React from "react";
+import { Route, Switch } from "react-router-dom";
+import Home from "../Home";
 
-class App extends Component {
-  state = {
-    categories: [],
-  };
-
-  // Allow user to log in to Spotify
-  login = () => {
-    API.spotifyLogin()
-      .then((res) => {
-        window.location.href = res.redirectUrl;
-      })
-      .catch((err) => console.log(err));
-  };
-
-  componentDidMount() {
-    // GET Spotify's categories
-    API.getCategories()
-      .then((res) => {
-        this.setState({
-          categories: res.categories.items,
-        });
-      })
-      .catch((err) => console.log(err));
-  }
-
-  render() {
-    let { categories } = this.state;
-    console.log("categories", categories);
-
-    return (
-      <div className="home-wrap">
-        <div className="inner-wrap">
-          <header>
-            <h1>Spotify</h1>
-          </header>
-          {categories && (
-            <React.Fragment>
-              {categories.map((category, i) => {
-                return <div>{category.name}</div>;
-              })}
-            </React.Fragment>
-          )}
-
-          <button onClick={this.login}>Login</button>
-        </div>
-      </div>
-    );
-  }
+function App() {
+  return (
+    <React.Fragment>
+      <Switch>
+        <Route exact path="/" component={Home} />
+      </Switch>
+    </React.Fragment>
+  );
 }
 
 export default App;
