@@ -23,8 +23,12 @@ const spotifyLogin = async () => {
   return body;
 };
 
-const getCategories = async () => {
-  const response = await fetch("/categories");
+// search for playlists
+const getPlaylists = async (keywords) => {
+  // encode spaces for multiple keywords
+  let _keywords = encodeURIComponent(keywords);
+
+  const response = await fetch(`/search?keywords=${_keywords}`);
   const body = await response.json();
 
   if (response.status !== 200) {
@@ -34,4 +38,4 @@ const getCategories = async () => {
   return body;
 };
 
-export { spotifyLogin, getCategories, callBackendAPI };
+export { spotifyLogin, getPlaylists, callBackendAPI };

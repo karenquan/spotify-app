@@ -7,12 +7,12 @@ const cors = require("cors");
 require("dotenv").config();
 
 const port = process.env.PORT || 5000;
-const client_id = process.env.SPOTIFY_CLIENT_ID;
-const client_secret = process.env.SPOTIFY_SECRET;
-const redirect_uri = "http://localhost:5000/callback";
-const dev_url = "http://localhost:3000/";
-const spotify_url = "https://accounts.spotify.com";
-const spotify_api_url = "https://api.spotify.com";
+const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
+const CLIENT_SECRET = process.env.SPOTIFY_SECRET;
+const REDIRECT_URI = "http://localhost:5000/callback";
+const DEV_URL = "http://localhost:3000/";
+const SPOTIFY_URL = "https://accounts.spotify.com";
+const SPOTIFY_API_URL = "https://api.spotify.com";
 
 const app = express();
 
@@ -45,6 +45,19 @@ var generateRandomString = function (length) {
 
 let stateKey = "spotify_auth_state";
 
+let clientAuthOptions = {
+  url: `${SPOTIFY_URL}/api/token`,
+  form: {
+    grant_type: "client_credentials",
+  },
+  headers: {
+    Authorization:
+      "Basic " +
+      Buffer.from(CLIENT_ID + ":" + CLIENT_SECRET).toString("base64"),
+  },
+  json: true,
+};
+
 // Spotify user authorization request
 // Return redirect url
 // CORS issue when trying to do the redirect here
@@ -60,13 +73,13 @@ app.get("/login", (req, res) => {
   var scope = "user-read-private user-read-email user-top-read";
 
   let redirect_url =
-    spotify_url +
+    SPOTIFY_URL +
     "/authorize?" +
     querystring.stringify({
       response_type: "code",
-      client_id: client_id,
+      client_id: CLIENT_ID,
       scope: scope,
-      redirect_uri: redirect_uri,
+      redirect_uri: REDIRECT_URI,
       state: state,
       show_dialog: true,
     });
@@ -77,9 +90,9 @@ app.get("/login", (req, res) => {
   //   "https://accounts.spotify.com/authorize?" +
   //     querystring.stringify({
   //       response_type: "code",
-  //       client_id: client_id,
+  //       client_id: CLIENT_ID,
   //       scope: scope,
-  //       redirect_uri: redirect_uri,
+  //       redirect_uri: REDIRECT_URI,
   //       state: state,
   //       show_dialog: true,
   //     })
@@ -99,7 +112,7 @@ app.get("/callback", function (req, res) {
 
   if (state === null || state !== storedState) {
     res.redirect(
-      dev_url +
+      DEV_URL +
         "#" +
         querystring.stringify({
           error: "state_mismatch",
@@ -108,16 +121,16 @@ app.get("/callback", function (req, res) {
   } else {
     res.clearCookie(stateKey);
     var authOptions = {
-      url: `${spotify_url}/api/token`,
+      url: `${SPOTIFY_URL}/api/token`,
       form: {
         code: code,
-        redirect_uri: redirect_uri,
+        redirect_uri: REDIRECT_URI,
         grant_type: "authorization_code",
       },
       headers: {
         Authorization:
           "Basic " +
-          Buffer.from(client_id + ":" + client_secret).toString("base64"),
+          Buffer.from(CLIENT_ID + ":" + CLIENT_SECRET).toString("base64"),
       },
       json: true,
     };
@@ -128,7 +141,7 @@ app.get("/callback", function (req, res) {
           refresh_token = body.refresh_token;
 
         var options = {
-          url: `${spotify_api_url}/v1/me`,
+          url: `${SPOTIFY_API_URL}/v1/me/top/artists`,
           headers: { Authorization: "Bearer " + access_token },
           json: true,
         };
@@ -139,64 +152,135 @@ app.get("/callback", function (req, res) {
         });
 
         // we can also pass the token to the browser to make requests from there
-        res.redirect(
-          dev_url +
-            "#" +
-            querystring.stringify({
-              access_token: access_token,
-              refresh_token: refresh_token,
-            })
-        );
+        // res.redirect(
+        //   DEV_URL +
+        //     "#" +
+        //     querystring.stringify({
+        //       access_token: access_token,
+        //       refresh_token: refresh_token,
+        //     })
+        // );
+        res.redirect(DEV_URL);
       } else {
-        res.redirect(
-          dev_url +
-            "#" +
-            querystring.stringify({
-              error: "invalid_token",
-            })
-        );
+        // redirect user to home page if they deny access
+        // res.redirect(
+        //   DEV_URL +
+        //     "#" +
+        //     querystring.stringify({
+        //       error: "invalid_token",
+        //     })
+        // );
+        res.redirect(DEV_URL);
       }
     });
   }
 });
 
+/* Search for playlists
+  Required query parameters:
+  q – search query keywords
+  type – comma-separated list (album, artist, playlist, track, show, episode)
+  limit (optional) – Min 1, default 20, max 50
+  offset (optional) – Default 0, max 2,000 (use with limit to get next page of results)
+*/
+app.get("/search", (req, res) => {
+  request.post(clientAuthOptions, (error, response, body) => {
+    if (!error && response.statusCode === 200) {
+      let access_token = body.access_token;
+      let keywords = req.query.keywords;
+      let track_count = {};
+      let trackList = [];
+      let playlists = [];
+
+      // use the access token to access the Spotify Web API
+      let options = {
+        url: `${SPOTIFY_API_URL}/v1/search?q=${keywords}&type=playlist&limit=50`,
+        headers: { Authorization: `Bearer ${access_token}` },
+        json: true,
+      };
+
+      // get playlists
+      request.get(options, (error, response, body) => {
+        console.log("got playlists");
+
+        let options = {
+          //url: `${SPOTIFY_API_URL}/v1/playlists/${playlists_ids[0]}/tracks`,
+          headers: { Authorization: `Bearer ${access_token}` },
+          json: true,
+        };
+
+        // create a list of playlist IDs
+        // save all 50 playlists' info
+        let playlists_ids = [];
+        playlists = body.playlists.items;
+        playlists.map((playlist, i) => {
+          playlists_ids.push(playlist.id);
+        });
+
+        // get tracks by using playlist IDs
+        // test with 2 playlists
+        for (let i = 0; i < 2; i++) {
+          // create url
+          options.url = `${SPOTIFY_API_URL}/v1/playlists/${playlists_ids[i]}/tracks`;
+          request.get(options, (error, response, body) => {
+            let tracks = body.items;
+            console.log("got tracks");
+
+            for (let j = 0; j < tracks.length; j++) {
+              // check if track is already in track_count array
+
+              if (track_count[tracks[j].track.id]) {
+                console.log("track already in list");
+                track_count[tracks[j].track.id] += 1;
+              } else {
+                // if not, add it
+                console.log("track not in list");
+                track_count[tracks[j].track.id] = 1;
+                trackList.push(tracks[j]);
+              }
+              trackList.push(tracks[j]);
+            }
+            console.log("track count", track_count);
+          });
+        }
+
+        //res.send({ trackCount: track_count, trackList: trackList });
+        res.send({ playlists: playlists });
+        // send top 100 tracks to client
+      });
+    } else {
+      // else redirect user
+      res.redirect(
+        DEV_URL +
+          "#" +
+          querystring.stringify({
+            error: "invalid_token",
+          })
+      );
+    }
+  });
+});
+
 // GET a list of categories
 app.get("/categories", (req, res) => {
-  let categories = [];
-
-  var authOptions = {
-    url: `${spotify_url}/api/token`,
-    form: {
-      grant_type: "client_credentials",
-    },
-    headers: {
-      Authorization:
-        "Basic " +
-        Buffer.from(client_id + ":" + client_secret).toString("base64"),
-    },
-    json: true,
-  };
-
-  request.post(authOptions, (error, response, body) => {
+  request.post(clientAuthOptions, (error, response, body) => {
     if (!error && response.statusCode === 200) {
       let access_token = body.access_token;
 
       // use the access token to access the Spotify Web API
       let options = {
-        url: `${spotify_api_url}/v1/browse/categories`,
+        url: `${SPOTIFY_API_URL}/v1/browse/categories`,
         headers: { Authorization: "Bearer " + access_token },
         json: true,
       };
 
       request.get(options, (error, response, body) => {
-        console.log(body.categories);
-        categories = body.categories;
-        res.send({ categories: categories });
+        res.send({ categories: body.categories });
       });
     } else {
       // else redirect user
       res.redirect(
-        dev_url +
+        DEV_URL +
           "#" +
           querystring.stringify({
             error: "invalid_token",

@@ -1,14 +1,14 @@
 // @import "./fonts";
 
 // Fonts
-$base-font: sans-serif;
-$secondary-font: serif;
+$base-font: "Source Sans Pro", sans-serif;
+$secondary-font: "Oswald", sans-serif;
 
 // Colors
-$rose-gold: #bd8c7d;
-$rose-gold-dark: #b27866;
-$slate: #262626;
-$silver: #8e8e90;
+$white: #fff;
+$dark-blue: #1c262d;
+$light-gray: #f4f4f4;
+$blue: #7c98a9;
 
 // Breakpoints
 $tablet: "screen and (max-width: 768px)";

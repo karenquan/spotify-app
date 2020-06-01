@@ -1,16 +1,15 @@
-.inner-wrap {
+.inner {
   width: 90%;
   margin: 0 auto;
 }
 
-.cover-link {
+.cover-img {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  font-size: 0.1px;
-  text-indent: -999999px;
+  background-size: cover;
 }
 
 .v-align-rel {
