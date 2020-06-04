@@ -189,8 +189,8 @@ app.get("/search", (req, res) => {
       let access_token = body.access_token;
       let keywords = req.query.keywords;
       let track_count = {};
-      let trackList = [];
-      let playlists = [];
+      let all_tracks = [],
+        playlists = [];
 
       // use the access token to access the Spotify Web API
       let options = {
@@ -203,12 +203,6 @@ app.get("/search", (req, res) => {
       request.get(options, (error, response, body) => {
         console.log("got playlists");
 
-        let options = {
-          //url: `${SPOTIFY_API_URL}/v1/playlists/${playlists_ids[0]}/tracks`,
-          headers: { Authorization: `Bearer ${access_token}` },
-          json: true,
-        };
-
         // create a list of playlist IDs
         // save all 50 playlists' info
         let playlists_ids = [];
@@ -217,36 +211,60 @@ app.get("/search", (req, res) => {
           playlists_ids.push(playlist.id);
         });
 
-        // get tracks by using playlist IDs
-        // test with 2 playlists
-        for (let i = 0; i < 2; i++) {
-          // create url
-          options.url = `${SPOTIFY_API_URL}/v1/playlists/${playlists_ids[i]}/tracks`;
-          request.get(options, (error, response, body) => {
-            let tracks = body.items;
-            console.log("got tracks");
+        let test_playlists = [];
+        test_playlists.push(playlists[0]);
+        test_playlists.push(playlists[1]);
 
-            for (let j = 0; j < tracks.length; j++) {
-              // check if track is already in track_count array
-
-              if (track_count[tracks[j].track.id]) {
-                console.log("track already in list");
-                track_count[tracks[j].track.id] += 1;
-              } else {
-                // if not, add it
-                console.log("track not in list");
-                track_count[tracks[j].track.id] = 1;
-                trackList.push(tracks[j]);
+        let requests = test_playlists.map((playlist) => {
+          //create a promise for each API call
+          return new Promise((resolve, reject) => {
+            request(
+              {
+                uri: playlist.tracks.href,
+                headers: { Authorization: `Bearer ${access_token}` },
+                json: true,
+              },
+              (err, res, body) => {
+                if (err) {
+                  reject(err);
+                }
+                //call the resolve function which is passed to the executor                             //function passed to the promise
+                resolve(body);
               }
-              trackList.push(tracks[j]);
-            }
-            console.log("track count", track_count);
+            );
           });
-        }
+        });
 
-        //res.send({ trackCount: track_count, trackList: trackList });
-        res.send({ playlists: playlists });
-        // send top 100 tracks to client
+        Promise.all(requests)
+          .then((body) => {
+            // body should contain an array of objects (representing a playlist) with the tracks
+            let tracks_list = body;
+
+            //check if track is already in track_count array
+            tracks_list.forEach((tracks) => {
+              tracks.items.forEach((item) => {
+                let track_id = item.track.id;
+                if (track_count[track_id]) {
+                  console.log("track already in list");
+                  track_count[track_id] += 1;
+                } else {
+                  // if not, add it
+                  console.log("track not in list");
+                  track_count[track_id] = 1;
+                  // create a list of all tracks for reference
+                  all_tracks.push(item.track);
+                }
+              });
+            });
+
+            // sort list of track count
+            // get track info of top tracks from all_tracks
+
+            res.send({ all_tracks: all_tracks });
+          })
+          .catch((err) => {
+            console.log(error);
+          });
       });
     } else {
       // else redirect user
