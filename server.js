@@ -188,7 +188,6 @@ app.get("/search", (req, res) => {
     if (!error && response.statusCode === 200) {
       let access_token = body.access_token;
       let keywords = req.query.keywords;
-      let track_count = {};
       let all_tracks = [],
         playlists = [];
 
@@ -202,14 +201,7 @@ app.get("/search", (req, res) => {
       // get playlists
       request.get(options, (error, response, body) => {
         console.log("got playlists");
-
-        // create a list of playlist IDs
-        // save all 50 playlists' info
-        let playlists_ids = [];
         playlists = body.playlists.items;
-        playlists.map((playlist, i) => {
-          playlists_ids.push(playlist.id);
-        });
 
         let test_playlists = [];
         test_playlists.push(playlists[0]);
@@ -237,30 +229,48 @@ app.get("/search", (req, res) => {
 
         Promise.all(requests)
           .then((body) => {
-            // body should contain an array of objects (representing a playlist) with the tracks
-            let tracks_list = body;
+            // body should contain an array of objects (representing a playlist) with its tracks
+            let playlists_with_tracks = body;
 
-            //check if track is already in track_count array
-            tracks_list.forEach((tracks) => {
+            // loop through array of playlist object
+            playlists_with_tracks.forEach((tracks) => {
+              // loop through tracks within each playlist object
               tracks.items.forEach((item) => {
-                let track_id = item.track.id;
-                if (track_count[track_id]) {
-                  console.log("track already in list");
-                  track_count[track_id] += 1;
+                let track = item.track;
+
+                // check if track is already in master track list
+                if (all_tracks.some((_track) => _track.id === track.id)) {
+                  //console.log("track already in list");
+                  all_tracks.find(
+                    (_track) => _track.id === track.id
+                  ).count += 1;
+                  // increase track counter
                 } else {
                   // if not, add it
-                  console.log("track not in list");
-                  track_count[track_id] = 1;
                   // create a list of all tracks for reference
-                  all_tracks.push(item.track);
+                  track.count = 1; // set counter
+                  all_tracks.push(track);
                 }
               });
             });
 
-            // sort list of track count
-            // get track info of top tracks from all_tracks
+            // sort master track list by count, then popularity
+            all_tracks.sort((a, b) =>
+              a.count > b.count
+                ? -1
+                : a.count === b.count
+                ? a.popularity > b.popularity
+                  ? -1
+                  : 1
+                : 1
+            );
 
-            res.send({ all_tracks: all_tracks });
+            // send top 100 tracks to client
+            res.send({
+              playlists: playlists,
+              top_tracks:
+                all_tracks.length > 100 ? all_tracks.slice(0, 100) : all_tracks,
+            });
           })
           .catch((err) => {
             console.log(error);
