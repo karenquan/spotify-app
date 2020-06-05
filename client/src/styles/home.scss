@@ -5,11 +5,19 @@
   margin: 0 auto;
   padding: 30px 0 0;
 
-  h1 {
+  h1,
+  h2 {
     margin: 0 0 20px;
     font-family: $secondary-font;
     text-transform: uppercase;
+  }
+
+  h1 {
     font-size: 2.2em;
+  }
+
+  h2 {
+    font-size: 1.7em;
   }
 }
 
@@ -80,5 +88,11 @@
   }
 
   .playlist-songs {
+  }
+}
+
+.top-tracks {
+  .top-track {
+    padding: 0 0 20px;
   }
 }
